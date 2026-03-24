@@ -1,9 +1,30 @@
+import { ConfigService } from '@nestjs/config'
 import { NestFactory } from '@nestjs/core'
+import { type MicroserviceOptions, Transport } from '@nestjs/microservices'
+import { PROTO_PATHS } from '@vendee-cinema/contracts'
 
 import { AppModule } from './app.module'
 
 async function bootstrap() {
 	const app = await NestFactory.create(AppModule)
-	await app.listen(process.env.PORT ?? 3000)
+	const config = app.get(ConfigService)
+	const url = `${config.getOrThrow<string>('GRPC_HOST')}:${config.getOrThrow<number>('GRPC_PORT')}`
+	app.connectMicroservice<MicroserviceOptions>({
+		transport: Transport.GRPC,
+		options: {
+			package: ['payment.v1'],
+			protoPath: [PROTO_PATHS.PAYMENT],
+			url,
+			loader: {
+				keepCase: false,
+				longs: String,
+				enums: String,
+				defaults: true,
+				oneofs: true
+			}
+		}
+	})
+	await app.startAllMicroservices()
+	await app.init()
 }
 bootstrap()

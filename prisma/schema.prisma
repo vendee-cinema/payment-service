@@ -1,0 +1,34 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "./generated"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Payment {
+  id String @id @default(nanoid())
+
+  amount     Float
+  status     PaymentStatus @default(PENDING)
+  providerId String        @map("provider_id")
+  metadata   Json?
+
+  userId String @map("user_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+
+  @@map("payment_status")
+}
