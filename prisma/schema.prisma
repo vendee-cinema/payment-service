@@ -13,7 +13,7 @@ model Payment {
 
   amount     Float
   status     PaymentStatus @default(PENDING)
-  providerId String        @map("provider_id")
+  providerId String?       @map("provider_id")
   metadata   Json?
 
   userId String @map("user_id")
