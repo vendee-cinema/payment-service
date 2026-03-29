@@ -14,16 +14,16 @@ export class PaymentController {
 	public constructor(private readonly paymentService: PaymentService) {}
 
 	@GrpcMethod('PaymentService', 'CreatePayment')
-	public async createPayment(
+	public async create(
 		data: CreatePaymentRequest
 	): Promise<CreatePaymentResponse> {
 		return this.paymentService.create(data)
 	}
 
 	@GrpcMethod('PaymentService', 'ProcessPaymentEvent')
-	public async handlePaymentEvent(
+	public async processEvent(
 		data: ProcessPaymentEventRequest
 	): Promise<ProcessPaymentEventResponse> {
-		return await this.paymentService.handlePaymentEvent(data)
+		return await this.paymentService.processEvent(data)
 	}
 }

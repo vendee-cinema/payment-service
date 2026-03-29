@@ -22,3 +22,8 @@ export * from './enums.js';
  * 
  */
 export type Payment = Prisma.PaymentModel
+/**
+ * Model PaymentMethod
+ * 
+ */
+export type PaymentMethod = Prisma.PaymentMethodModel

@@ -24,6 +24,25 @@ model Payment {
   @@map("payments")
 }
 
+model PaymentMethod {
+  id String @id @default(nanoid())
+
+  type   String
+  status PaymentMethodStatus @default(PENDING)
+  mask   String
+  bank   String?
+  brand  String?
+  ip     String?
+
+  userId     String  @map("user_id")
+  providerId String? @map("provider_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("payment_methods")
+}
+
 enum PaymentStatus {
   PENDING
   SUCCESS
@@ -31,4 +50,11 @@ enum PaymentStatus {
   REFUNDED
 
   @@map("payment_status")
+}
+
+enum PaymentMethodStatus {
+  PENDING
+  ACTIVE
+
+  @@map("payment_method_status")
 }
