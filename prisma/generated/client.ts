@@ -29,8 +29,8 @@ export * from "./enums.js"
  * const prisma = new PrismaClient({
  *   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL })
  * })
- * // Fetch zero or more Payments
- * const payments = await prisma.payment.findMany()
+ * // Fetch zero or more Orders
+ * const orders = await prisma.order.findMany()
  * ```
  * 
  * Read more in our [docs](https://pris.ly/d/client).
@@ -40,10 +40,10 @@ export type PrismaClient<LogOpts extends Prisma.LogLevel = never, OmitOpts exten
 export { Prisma }
 
 /**
- * Model Payment
+ * Model Order
  * 
  */
-export type Payment = Prisma.PaymentModel
+export type Order = Prisma.OrderModel
 /**
  * Model PaymentMethod
  * 

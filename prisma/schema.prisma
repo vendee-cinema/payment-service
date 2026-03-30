@@ -8,13 +8,16 @@ datasource db {
   provider = "postgresql"
 }
 
-model Payment {
+model Order {
   id String @id @default(nanoid())
 
-  amount     Float
-  status     PaymentStatus @default(PENDING)
-  providerId String?       @map("provider_id")
-  metadata   Json?
+  providerPaymentId String?          @map("provider_payment_id")
+  provider          PaymentProvider?
+
+  amount Float
+  status PaymentStatus @default(PENDING)
+
+  metadata Json?
 
   userId String @map("user_id")
 
@@ -33,9 +36,9 @@ model PaymentMethod {
   bank   String?
   brand  String?
   ip     String?
+  token  String?
 
-  userId     String  @map("user_id")
-  providerId String? @map("provider_id")
+  userId String @map("user_id")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -57,4 +60,10 @@ enum PaymentMethodStatus {
   ACTIVE
 
   @@map("payment_method_status")
+}
+
+enum PaymentProvider {
+  LIQPAY
+
+  @@map("payment_provider")
 }

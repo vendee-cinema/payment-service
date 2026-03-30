@@ -18,10 +18,10 @@ export { Prisma }
 export * as $Enums from './enums.js'
 export * from './enums.js';
 /**
- * Model Payment
+ * Model Order
  * 
  */
-export type Payment = Prisma.PaymentModel
+export type Order = Prisma.OrderModel
 /**
  * Model PaymentMethod
  * 

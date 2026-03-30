@@ -25,3 +25,10 @@ export const PaymentMethodStatus = {
 } as const
 
 export type PaymentMethodStatus = (typeof PaymentMethodStatus)[keyof typeof PaymentMethodStatus]
+
+
+export const PaymentProvider = {
+  LIQPAY: 'LIQPAY'
+} as const
+
+export type PaymentProvider = (typeof PaymentProvider)[keyof typeof PaymentProvider]

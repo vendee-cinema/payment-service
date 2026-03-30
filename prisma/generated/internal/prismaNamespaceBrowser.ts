@@ -51,7 +51,7 @@ export const AnyNull = runtime.AnyNull
 
 
 export const ModelName = {
-  Payment: 'Payment',
+  Order: 'Order',
   PaymentMethod: 'PaymentMethod'
 } as const
 
@@ -71,18 +71,19 @@ export const TransactionIsolationLevel = runtime.makeStrictEnum({
 export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof typeof TransactionIsolationLevel]
 
 
-export const PaymentScalarFieldEnum = {
+export const OrderScalarFieldEnum = {
   id: 'id',
+  providerPaymentId: 'providerPaymentId',
+  provider: 'provider',
   amount: 'amount',
   status: 'status',
-  providerId: 'providerId',
   metadata: 'metadata',
   userId: 'userId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
-export type PaymentScalarFieldEnum = (typeof PaymentScalarFieldEnum)[keyof typeof PaymentScalarFieldEnum]
+export type OrderScalarFieldEnum = (typeof OrderScalarFieldEnum)[keyof typeof OrderScalarFieldEnum]
 
 
 export const PaymentMethodScalarFieldEnum = {
@@ -93,8 +94,8 @@ export const PaymentMethodScalarFieldEnum = {
   bank: 'bank',
   brand: 'brand',
   ip: 'ip',
+  token: 'token',
   userId: 'userId',
-  providerId: 'providerId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
