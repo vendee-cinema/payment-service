@@ -3,18 +3,25 @@ import { RpcException } from '@nestjs/microservices'
 import { PaymentMethod, PaymentMethodStatus } from '@prisma/generated/client'
 import { RpcStatus } from '@vendee-cinema/common'
 import type {
+	CreatePaymentMethodRequest,
 	CreatePaymentRequest,
+	DeletePaymentMethodRequest,
 	GetPaymentStatusRequest,
-	ProcessPaymentEventRequest
+	GetUserPaymentMethodsRequest,
+	ProcessPaymentEventRequest,
+	VerifyPaymentMethodRequest
 } from '@vendee-cinema/contracts/payment'
 import { LiqpayService } from 'liqpay-nestjs'
+
+import { RefundRepository } from '../refund'
 
 import { PaymentRepository } from './payment.repository'
 
 @Injectable()
 export class PaymentService {
 	public constructor(
-		private readonly repository: PaymentRepository,
+		private readonly paymentRepository: PaymentRepository,
+		private readonly refundRepository: RefundRepository,
 		private readonly liqpay: LiqpayService
 	) {}
 
@@ -23,138 +30,279 @@ export class PaymentService {
 		const { savePaymentMethod, seats, sessionId, userId, paymentMethodId } =
 			data
 
-		// TODO: update when implement booking/order-service
-		const order = await this.repository.create({ amount: 300, userId })
+		// TODO: update when implement booking/payment-service
+		const payment = await this.paymentRepository.create({
+			amount: 100,
+			userId,
+			provider: 'LIQPAY',
+			// replace with real id
+			bookingId: 'test123'
+		})
 
 		let paymentMethod: PaymentMethod | null = null
 		if (paymentMethodId) {
 			paymentMethod =
-				await this.repository.findPaymentMethodById(paymentMethodId)
-			if (!paymentMethod)
+				await this.paymentRepository.findPaymentMethodById(paymentMethodId)
+			if (!paymentMethod) {
+				console.error('Payment method not found')
 				throw new RpcException({
 					code: RpcStatus.NOT_FOUND,
 					details: 'Payment method not found'
 				})
+			}
+			// TODO: add paying by token
 		}
 
-		const payment = this.liqpay.payments.create({
-			action: paymentMethod ? 'paytoken' : 'pay',
-			orderId: order.id,
-			amount: order.amount,
+		const { request, url } = this.liqpay.payments.getCheckoutUrl({
+			orderId: payment.bookingId,
+			amount: payment.amount,
 			currency: 'UAH',
 			description: `Payment for tickets for session #${sessionId}`,
 			paytypes: ['apay', 'card', 'gpay', 'privat24', 'qr'],
+			info: userId,
 			...(savePaymentMethod
 				? {
+						// must set customer to user phone
 						customer: `+380123456789`,
-						recurringbytoken: true,
+						recurringByToken: true,
 						customerUserId: userId
 					}
-				: {}),
-			...(paymentMethod
-				? { cardToken: paymentMethod.token, ip: paymentMethod.ip }
 				: {})
 		})
 
-		await this.repository.update(order.id, {
-			metadata: JSON.stringify(payment)
+		console.log('CREATE: ', { ...request, url })
+
+		await this.paymentRepository.update(payment.id, {
+			metadata: JSON.stringify(request)
 		})
 
-		return { checkoutUrl: payment.checkoutUrl }
+		return { checkoutUrl: url }
 	}
 
-	public async processEvent(data: ProcessPaymentEventRequest) {
-		const { provider, data: raw, signature } = data
+	public async processPaymentEvent(data: ProcessPaymentEventRequest) {
+		// get raw encoded callback data
+		const { data: raw, provider, signature } = data
 
-		const { data: payload, error } =
-			await this.liqpay.webhooks.parseCheckoutCallback({
+		// decode raw data
+		const { data: response, error } =
+			await this.liqpay.webhooks.parseCheckoutCallbackTest({
 				data: raw,
 				signature
 			})
-		if (error)
+		// console.log('CALLBACK: ', response)
+
+		if (error) {
+			console.error('LIB ERROR: ', error)
 			throw new RpcException({
 				code: RpcStatus.INTERNAL,
 				details: `${provider} error: ${error.code} - ${error.description}`
 			})
+		}
 
-		const order = this.repository.findById(payload.orderId)
-		if (!order)
+		// get payment from db
+		const payment = await this.paymentRepository.findByBookingId(
+			response.orderId
+		)
+		if (!payment) {
+			console.error('Payment not found')
 			throw new RpcException({
 				code: RpcStatus.NOT_FOUND,
 				details: 'Payment not found'
 			})
+		}
 
-		await this.repository.update(payload.orderId, {
-			providerPaymentId: payload.paymentId
+		// connect provider paymentId with payment in our db
+		await this.paymentRepository.update(payment.id, {
+			providerId: response.paymentId
 		})
 
-		if (status === 'success') {
-			await this.repository.markSuccessed(payload.orderId)
-			if (payload.cardToken) {
-				const existing = await this.repository.findActivePaymentMethod(
-					payload.customer,
-					payload.cardToken
+		// mark payment status
+		if (response.status === 'reversed') {
+			try {
+				const refund = await this.refundRepository.findRefundByPaymentId(
+					payment.id
 				)
-				if (existing) return
-				try {
-					await this.repository.createPaymentMethod({
-						type: payload.paytype,
-						token: payload.cardToken,
-						// must get userId by phone
-						userId: payload.customer,
-						status: PaymentMethodStatus.ACTIVE,
-						bank: payload.senderCardBank,
-						brand: payload.senderCardType,
-						mask: payload.senderCardMask2,
-						ip: payload.ip
+				if (!refund) {
+					console.error('Refund not found')
+					throw new RpcException({
+						code: RpcStatus.NOT_FOUND,
+						details: 'Refund not found'
 					})
-				} catch (error) {
-					console.error(
-						`Failed to save payment method for user ${payload.customer}: `,
-						error
-					)
 				}
+				await this.refundRepository.markRefundSuccessed(refund.id)
+				await this.refundRepository.markPaymentRefunded(payment.id)
+			} catch {
+				console.error('Failed to process refund')
+				throw new RpcException({
+					code: RpcStatus.INTERNAL,
+					details: 'Failed to process refund'
+				})
 			}
 		}
-		if (payload.status === 'error' || payload.status === 'failure')
-			await this.repository.markFailed(payload.orderId)
+		if (response.status === 'error' || response.status === 'failure') {
+			try {
+				await this.paymentRepository.markFailed(payment.id)
+			} catch {
+				console.error('Failed to process payment1')
+				throw new RpcException({
+					code: RpcStatus.INTERNAL,
+					details: 'Failed to process payment'
+				})
+			}
+		}
+		if (response.status === 'success') {
+			try {
+				await this.paymentRepository.markSuccessed(payment.id)
+			} catch {
+				console.error('Failed to process payment2')
+				throw new RpcException({
+					code: RpcStatus.INTERNAL,
+					details: 'Failed to process payment'
+				})
+			}
+
+			// if callback have token save it
+			// TODO: replace with upsert
+			if (response.cardToken) {
+				const existing = await this.paymentRepository.findActivePaymentMethod(
+					response.info,
+					response.cardToken
+				)
+				if (existing) {
+					await this.paymentRepository.updatePaymentMethod(existing.id, {
+						type: response.paytype,
+						token: response.cardToken,
+						phone: response.customer,
+						userId: response.info,
+						status: PaymentMethodStatus.ACTIVE,
+						bank: response.senderCardBank,
+						brand: response.senderCardType,
+						mask: response.senderCardMask2,
+						ip: response.ip
+					})
+					return { ok: true }
+				}
+				await this.paymentRepository.createPaymentMethod({
+					type: response.paytype,
+					token: response.cardToken,
+					phone: response.customer,
+					userId: response.info,
+					status: PaymentMethodStatus.ACTIVE,
+					bank: response.senderCardBank,
+					brand: response.senderCardType,
+					mask: response.senderCardMask2,
+					ip: response.ip
+				})
+			}
+		}
 
 		return { ok: true }
 	}
 
 	// getting status with calling LiqPay Api
 	public async getStatusWithApi(data: GetPaymentStatusRequest) {
-		const { orderId } = data
+		const { paymentId } = data
 
-		const order = await this.repository.findById(orderId)
-		if (!order)
+		const payment = await this.paymentRepository.findById(paymentId)
+		if (!payment) {
+			console.error('Payment not found')
 			throw new RpcException({
 				code: RpcStatus.NOT_FOUND,
 				details: 'Payment not found'
 			})
+		}
 
-		const { data: payload, error } =
-			await this.liqpay.payments.getPaymentStatus(orderId)
-		// if (error)
-		// 	throw new RpcException({
-		// 		code: RpcStatus.INTERNAL,
-		// 		details: `error: ${error.code} - ${error.description}`
-		// 	})
-		if (!payload) await this.repository.markFailed(orderId)
+		const { data: response, error } = await this.liqpay.payments.getStatus({
+			orderId: payment.bookingId
+		})
+		if (error) {
+			console.error('LIB ERROR: ', error)
+			await this.paymentRepository.markFailed(paymentId)
+			throw new RpcException({
+				code: RpcStatus.INTERNAL,
+				details: `error: ${error.code} - ${error.description}`
+			})
+		}
+		// console.log('STATUS:', response)
 
-		if (payload?.status === 'success')
-			await this.repository.markSuccessed(orderId)
-		if (payload?.status === 'error' || payload?.status === 'failure')
-			await this.repository.markFailed(orderId)
+		if (response.status === 'reversed') {
+			try {
+				const refund = await this.refundRepository.findRefundByPaymentId(
+					payment.id
+				)
+				if (!refund) {
+					console.error('Refund not found')
+					throw new RpcException({
+						code: RpcStatus.NOT_FOUND,
+						details: 'Refund not found'
+					})
+				}
+				await this.refundRepository.markRefundSuccessed(refund.id)
+				await this.refundRepository.markPaymentRefunded(payment.id)
+			} catch {
+				console.error('Failed to process refund')
+				throw new RpcException({
+					code: RpcStatus.INTERNAL,
+					details: 'Failed to process refund'
+				})
+			}
+		}
+		if (response.status === 'success')
+			await this.paymentRepository.markSuccessed(paymentId)
+		if (response.status === 'error' || response.status === 'failure')
+			await this.paymentRepository.markFailed(paymentId)
 
-		const { status } = await this.repository.findById(orderId)
+		const { status } = await this.paymentRepository.findById(paymentId)
 		return { status }
 	}
 
 	// getting status just from our database
 	public async getStatus(data: GetPaymentStatusRequest) {
-		const { orderId } = data
-		const { status } = await this.repository.findById(orderId)
+		const { paymentId } = data
+		const { status } = await this.paymentRepository.findById(paymentId)
 		return { status }
+	}
+
+	public async getUserPaymentMethods(data: GetUserPaymentMethodsRequest) {
+		const { userId } = data
+		const methods =
+			await this.paymentRepository.findPaymentMethodsByUser(userId)
+		return { methods }
+	}
+
+	public async createPaymentMethod(data: CreatePaymentMethodRequest) {
+		throw new RpcException({
+			code: RpcStatus.UNIMPLEMENTED,
+			details: 'createPaymentMethod is not implemented'
+		})
+		const { userId } = data
+		return { id: '', url: '' }
+	}
+
+	public async verifyPaymentMethod(data: VerifyPaymentMethodRequest) {
+		const { methodId, userId } = data
+		const method = await this.paymentRepository.findPaymentMethodById(methodId)
+		if (!method || method.userId !== userId) {
+			console.error('Payment method not found')
+			throw new RpcException({
+				code: RpcStatus.NOT_FOUND,
+				details: 'Payment method not found'
+			})
+		}
+		return { ok: true }
+	}
+
+	public async deletePaymentMethod(data: DeletePaymentMethodRequest) {
+		const { methodId, userId } = data
+		const method = await this.paymentRepository.findPaymentMethodById(methodId)
+		if (!method || method.userId !== userId) {
+			console.error('Payment method not found')
+			throw new RpcException({
+				code: RpcStatus.NOT_FOUND,
+				details: 'Payment method not found'
+			})
+		}
+		await this.paymentRepository.deletePaymentMethod(methodId)
+		return { ok: true }
 	}
 }

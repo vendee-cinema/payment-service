@@ -8,18 +8,20 @@ datasource db {
   provider = "postgresql"
 }
 
-model Order {
+model Payment {
   id String @id @default(nanoid())
 
-  providerPaymentId String?          @map("provider_payment_id")
-  provider          PaymentProvider?
+  providerId String?          @map("provider_id")
+  provider   PaymentProvider?
 
   amount Float
   status PaymentStatus @default(PENDING)
 
   metadata Json?
 
-  userId String @map("user_id")
+  userId    String   @map("user_id")
+  bookingId String   @map("booking_id")
+  refunds   Refund[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -30,13 +32,14 @@ model Order {
 model PaymentMethod {
   id String @id @default(nanoid())
 
-  type   String
+  type   String?
   status PaymentMethodStatus @default(PENDING)
-  mask   String
+  mask   String?
   bank   String?
   brand  String?
   ip     String?
   token  String?
+  phone  String?
 
   userId String @map("user_id")
 
@@ -66,4 +69,29 @@ enum PaymentProvider {
   LIQPAY
 
   @@map("payment_provider")
+}
+
+model Refund {
+  id String @id @default(nanoid())
+
+  amount Float
+  status RefundStatus @default(PENDING)
+
+  providerId String? @map("provider_id")
+
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  paymentId String  @map("payment_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("refunds")
+}
+
+enum RefundStatus {
+  PENDING
+  SUCCESS
+  FAILED
+
+  @@map("refund_status")
 }

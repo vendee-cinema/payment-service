@@ -15,9 +15,9 @@
         "@nestjs/platform-express": "^11.0.1",
         "@prisma/adapter-pg": "^7.5.0",
         "@prisma/client": "^7.5.0",
-        "@vendee-cinema/common": "^1.2.15",
-        "@vendee-cinema/contracts": "^1.2.28",
-        "liqpay-nestjs": "^0.2.17",
+        "@vendee-cinema/common": "^1.2.16",
+        "@vendee-cinema/contracts": "^1.2.31",
+        "liqpay-nestjs": "^0.3.18",
         "prisma": "^7.5.0",
         "reflect-metadata": "^0.2.2",
         "rxjs": "^7.8.1",
@@ -504,9 +504,9 @@
 
     "@unrs/resolver-binding-win32-x64-msvc": ["@unrs/resolver-binding-win32-x64-msvc@1.11.1", "", { "os": "win32", "cpu": "x64" }, "sha512-lrW200hZdbfRtztbygyaq/6jP6AKE8qQN2KvPcJ+x7wiD038YtnYtZ82IMNJ69GJibV7bwL3y9FgK+5w/pYt6g=="],
 
-    "@vendee-cinema/common": ["@vendee-cinema/common@1.2.15", "", { "dependencies": { "@nestjs/common": "^11.1.17", "@nestjs/config": "^4.0.3", "@nestjs/microservices": "^11.1.17", "@vendee-cinema/contracts": "^1.2.28" } }, "sha512-IVDOwytbVobP9P44LPAjyIpO8AnDBq+wsLG5Ky7nU/lXAmv4kwm4tl3JNG0v1V52lHbFQoImD60HcCaD7VnxAA=="],
+    "@vendee-cinema/common": ["@vendee-cinema/common@1.2.16", "", { "dependencies": { "@nestjs/common": "^11.1.17", "@nestjs/config": "^4.0.3", "@nestjs/microservices": "^11.1.17", "@vendee-cinema/contracts": "^1.2.31" } }, "sha512-4kVWzJBzSJnMaKIeOsytpwD8arGGQZmSO+/HIyWfMEoLzTenxGJyAvEBqG9wi8FeNgiCoTKelUlQgds/i+03qg=="],
 
-    "@vendee-cinema/contracts": ["@vendee-cinema/contracts@1.2.28", "", { "dependencies": { "@grpc/grpc-js": "^1.14.3", "@nestjs/microservices": "^11.1.16", "rxjs": "^7.8.2", "ts-proto": "^2.11.4" } }, "sha512-tIKYYrkfDDVud1a/mIpP1uvW5wJv1N+gZcffLoMysqyKagyesBRLFsqbn2qwXBqtmsf0LdpDtESWWeTtYeXjng=="],
+    "@vendee-cinema/contracts": ["@vendee-cinema/contracts@1.2.31", "", { "dependencies": { "@grpc/grpc-js": "^1.14.3", "@nestjs/microservices": "^11.1.16", "rxjs": "^7.8.2", "ts-proto": "^2.11.4" } }, "sha512-hhm2uIIHqgaobHMwKf/1pX6XXFUzM/o4vla5IMAc7nshLIx4xjEUzp0E485GJZxkUy3acBcu+R+exDsqJAskEg=="],
 
     "@vendee-cinema/core": ["@vendee-cinema/core@1.0.4", "", { "dependencies": { "@trivago/prettier-plugin-sort-imports": "6.0.2" }, "peerDependencies": { "prettier": "^3.8.1" } }, "sha512-Ik86wW9E01v5/4Ko8qkmhHOSGJgjbTQB28KWJ/23sxN0A0dKkR8pQ9V4lcN38py+QbvX4SlgT4DoUNfSbzf3qw=="],
 
@@ -1076,7 +1076,7 @@
 
     "lines-and-columns": ["lines-and-columns@1.2.4", "", {}, "sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg=="],
 
-    "liqpay-nestjs": ["liqpay-nestjs@0.2.17", "", { "dependencies": { "ts-case-convert": "^2.1.0", "zod": "^4.3.6" }, "peerDependencies": { "@nestjs/common": "^10 || ^11", "@nestjs/core": "^10 || ^11" } }, "sha512-NDB2DX7HX7xnAWyLTHzpy02P0B7Yv0YIYlgWe9Ca5pMJH7JtsWZhC5rhBEX9krYxp+bSzZ23G0sVtcMnsVLMWg=="],
+    "liqpay-nestjs": ["liqpay-nestjs@0.3.18", "", { "dependencies": { "ts-case-convert": "^2.1.0", "zod": "^4.3.6" }, "peerDependencies": { "@nestjs/common": "^10 || ^11", "@nestjs/core": "^10 || ^11" } }, "sha512-2cLVxBVAVgIUrodhNMosuqFzGtTSvN0gl+7lTBgQaDYosA7K0uluaJ/3nik+Zh6kax5Ik5J+adHa+n9G5UjIWw=="],
 
     "load-esm": ["load-esm@1.0.3", "", {}, "sha512-v5xlu8eHD1+6r8EHTg6hfmO97LN8ugKtiXcy5e6oN72iD2r6u0RPfLl6fxM+7Wnh2ZRq15o0russMst44WauPA=="],
 

@@ -12,8 +12,8 @@ async function bootstrap() {
 	app.connectMicroservice<MicroserviceOptions>({
 		transport: Transport.GRPC,
 		options: {
-			package: ['payment.v1'],
-			protoPath: [PROTO_PATHS.PAYMENT],
+			package: ['payment.v1', 'refund.v1'],
+			protoPath: [PROTO_PATHS.PAYMENT, PROTO_PATHS.REFUND],
 			url,
 			loader: {
 				keepCase: false,

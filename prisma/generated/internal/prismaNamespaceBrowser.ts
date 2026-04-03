@@ -51,8 +51,9 @@ export const AnyNull = runtime.AnyNull
 
 
 export const ModelName = {
-  Order: 'Order',
-  PaymentMethod: 'PaymentMethod'
+  Payment: 'Payment',
+  PaymentMethod: 'PaymentMethod',
+  Refund: 'Refund'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -71,19 +72,20 @@ export const TransactionIsolationLevel = runtime.makeStrictEnum({
 export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof typeof TransactionIsolationLevel]
 
 
-export const OrderScalarFieldEnum = {
+export const PaymentScalarFieldEnum = {
   id: 'id',
-  providerPaymentId: 'providerPaymentId',
+  providerId: 'providerId',
   provider: 'provider',
   amount: 'amount',
   status: 'status',
   metadata: 'metadata',
   userId: 'userId',
+  bookingId: 'bookingId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
-export type OrderScalarFieldEnum = (typeof OrderScalarFieldEnum)[keyof typeof OrderScalarFieldEnum]
+export type PaymentScalarFieldEnum = (typeof PaymentScalarFieldEnum)[keyof typeof PaymentScalarFieldEnum]
 
 
 export const PaymentMethodScalarFieldEnum = {
@@ -95,12 +97,26 @@ export const PaymentMethodScalarFieldEnum = {
   brand: 'brand',
   ip: 'ip',
   token: 'token',
+  phone: 'phone',
   userId: 'userId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type PaymentMethodScalarFieldEnum = (typeof PaymentMethodScalarFieldEnum)[keyof typeof PaymentMethodScalarFieldEnum]
+
+
+export const RefundScalarFieldEnum = {
+  id: 'id',
+  amount: 'amount',
+  status: 'status',
+  providerId: 'providerId',
+  paymentId: 'paymentId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type RefundScalarFieldEnum = (typeof RefundScalarFieldEnum)[keyof typeof RefundScalarFieldEnum]
 
 
 export const SortOrder = {
