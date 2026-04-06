@@ -12,6 +12,9 @@ import type {
 	VerifyPaymentMethodRequest
 } from '@vendee-cinema/contracts/payment'
 import { LiqpayService } from 'liqpay-nestjs'
+import { lastValueFrom } from 'rxjs'
+
+import { BookingClientGrpc } from '@/clients'
 
 import { RefundRepository } from '../refund'
 
@@ -22,7 +25,8 @@ export class PaymentService {
 	public constructor(
 		private readonly paymentRepository: PaymentRepository,
 		private readonly refundRepository: RefundRepository,
-		private readonly liqpay: LiqpayService
+		private readonly liqpay: LiqpayService,
+		private readonly bookingClient: BookingClientGrpc
 	) {}
 
 	// TODO: user phone is needed so must to update passport and current user decorator to return not only userId but another fields ***OR USE user-service
@@ -30,13 +34,19 @@ export class PaymentService {
 		const { savePaymentMethod, seats, sessionId, userId, paymentMethodId } =
 			data
 
-		// TODO: update when implement booking/payment-service
+		const reservation = await lastValueFrom(
+			this.bookingClient.createReservation({
+				userId,
+				sessionId,
+				seats
+			})
+		)
+
 		const payment = await this.paymentRepository.create({
-			amount: 100,
+			amount: reservation.amount,
 			userId,
 			provider: 'LIQPAY',
-			// replace with real id
-			bookingId: 'test123'
+			bookingId: reservation.orderId
 		})
 
 		let paymentMethod: PaymentMethod | null = null
@@ -54,12 +64,12 @@ export class PaymentService {
 		}
 
 		const { request, url } = this.liqpay.payments.getCheckoutUrl({
-			orderId: payment.bookingId,
+			orderId: reservation.orderId,
 			amount: payment.amount,
 			currency: 'UAH',
 			description: `Payment for tickets for session #${sessionId}`,
 			paytypes: ['apay', 'card', 'gpay', 'privat24', 'qr'],
-			info: userId,
+			info: JSON.stringify({ userId }),
 			...(savePaymentMethod
 				? {
 						// must set customer to user phone
@@ -89,6 +99,7 @@ export class PaymentService {
 				data: raw,
 				signature
 			})
+		const { userId } = JSON.parse(response.info)
 		// console.log('CALLBACK: ', response)
 
 		if (error) {
@@ -118,81 +129,99 @@ export class PaymentService {
 
 		// mark payment status
 		if (response.status === 'reversed') {
+			const refund = await this.refundRepository.findRefundByPaymentId(
+				payment.id
+			)
+			if (!refund) {
+				console.error('Refund not found')
+				throw new RpcException({
+					code: RpcStatus.NOT_FOUND,
+					details: 'Refund not found'
+				})
+			}
 			try {
-				const refund = await this.refundRepository.findRefundByPaymentId(
-					payment.id
-				)
-				if (!refund) {
-					console.error('Refund not found')
-					throw new RpcException({
-						code: RpcStatus.NOT_FOUND,
-						details: 'Refund not found'
-					})
-				}
 				await this.refundRepository.markRefundSuccessed(refund.id)
 				await this.refundRepository.markPaymentRefunded(payment.id)
-			} catch {
-				console.error('Failed to process refund')
-				throw new RpcException({
-					code: RpcStatus.INTERNAL,
-					details: 'Failed to process refund'
-				})
+				await lastValueFrom(
+					this.bookingClient.cancelBooking({
+						bookingId: refund.payment.bookingId,
+						userId: refund.payment.userId
+					})
+				)
+			} catch (error) {
+				console.error('Failed to process refund: ', error)
+				// throw new RpcException({
+				// 	code: RpcStatus.INTERNAL,
+				// 	details: 'Failed to process refund'
+				// })
 			}
 		}
 		if (response.status === 'error' || response.status === 'failure') {
 			try {
 				await this.paymentRepository.markFailed(payment.id)
-			} catch {
-				console.error('Failed to process payment1')
-				throw new RpcException({
-					code: RpcStatus.INTERNAL,
-					details: 'Failed to process payment'
-				})
+			} catch (error) {
+				console.error('Failed to process payment:', error)
+				// throw new RpcException({
+				// 	code: RpcStatus.INTERNAL,
+				// 	details: 'Failed to process payment'
+				// })
 			}
 		}
 		if (response.status === 'success') {
 			try {
 				await this.paymentRepository.markSuccessed(payment.id)
-			} catch {
-				console.error('Failed to process payment2')
-				throw new RpcException({
-					code: RpcStatus.INTERNAL,
-					details: 'Failed to process payment'
-				})
+			} catch (error) {
+				console.error('Failed to process payment: ', error)
+				// throw new RpcException({
+				// 	code: RpcStatus.INTERNAL,
+				// 	details: 'Failed to process payment'
+				// })
 			}
 
 			// if callback have token save it
-			// TODO: replace with upsert
 			if (response.cardToken) {
 				const existing = await this.paymentRepository.findActivePaymentMethod(
-					response.info,
+					userId,
 					response.cardToken
 				)
-				if (existing) {
-					await this.paymentRepository.updatePaymentMethod(existing.id, {
+				if (existing) return
+
+				try {
+					await this.paymentRepository.createPaymentMethod({
 						type: response.paytype,
 						token: response.cardToken,
 						phone: response.customer,
-						userId: response.info,
+						userId,
 						status: PaymentMethodStatus.ACTIVE,
 						bank: response.senderCardBank,
 						brand: response.senderCardType,
 						mask: response.senderCardMask2,
 						ip: response.ip
 					})
-					return { ok: true }
+				} catch (error) {
+					console.error(
+						`Failed to save payment method for user ${userId}: `,
+						error
+					)
+					// throw new RpcException({
+					// 	code: RpcStatus.INTERNAL,
+					// 	details: `Failed to save payment method for user ${userId}: ${error}`
+					// })
 				}
-				await this.paymentRepository.createPaymentMethod({
-					type: response.paytype,
-					token: response.cardToken,
-					phone: response.customer,
-					userId: response.info,
-					status: PaymentMethodStatus.ACTIVE,
-					bank: response.senderCardBank,
-					brand: response.senderCardType,
-					mask: response.senderCardMask2,
-					ip: response.ip
-				})
+			}
+			try {
+				await lastValueFrom(
+					this.bookingClient.confirmBooking({
+						bookingId: response.orderId,
+						userId
+					})
+				)
+			} catch (error) {
+				console.error('Failed to call booking.confirmBooking: ', error)
+				// throw new RpcException({
+				// 	code: RpcStatus.INTERNAL,
+				// 	details: `Failed to call booking.confirmBooking: ${error}`
+				// })
 			}
 		}
 
@@ -252,13 +281,6 @@ export class PaymentService {
 		if (response.status === 'error' || response.status === 'failure')
 			await this.paymentRepository.markFailed(paymentId)
 
-		const { status } = await this.paymentRepository.findById(paymentId)
-		return { status }
-	}
-
-	// getting status just from our database
-	public async getStatus(data: GetPaymentStatusRequest) {
-		const { paymentId } = data
 		const { status } = await this.paymentRepository.findById(paymentId)
 		return { status }
 	}

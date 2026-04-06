@@ -20,7 +20,10 @@ export class RefundRepository {
 	}
 
 	public async findRefundByPaymentId(paymentId: string) {
-		return await this.prisma.refund.findFirst({ where: { paymentId } })
+		return await this.prisma.refund.findFirst({
+			where: { paymentId },
+			include: { payment: true }
+		})
 	}
 
 	public async createRefund(data: RefundCreateInput) {

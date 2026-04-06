@@ -35,8 +35,7 @@ export class RefundService {
 		})
 		// console.log('RESPONSE: ', response)
 		if (error) {
-			console.log('ERROR: ', error)
-
+			console.error('ERROR: ', error)
 			throw new RpcException({
 				code: RpcStatus.INTERNAL,
 				details: `error: ${error.code} - ${error.description}`
